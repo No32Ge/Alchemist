@@ -1,0 +1,6 @@
+node_modules/
+alchemist.db
+server/alchemist.db
+.env
+.DS_Store
+*.log

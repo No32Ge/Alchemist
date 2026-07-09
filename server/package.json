@@ -1,0 +1,19 @@
+{
+  "name": "alchemist-relay-server",
+  "version": "1.0.0",
+  "description": "Alchemist Backend Relay Server with Access Key & Credit Management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "init-db": "node -e \"require('./server.js')\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^10.0.0",
+    "dotenv": "^16.4.5"
+  }
+}
