@@ -81,6 +81,11 @@ async function executeBatchLogic(dataToProcess) {
         cleanupRunState();
         return;
     }
+    
+    // 🔮 读取当前策略的输出列
+    const activeStrategy = currentStrategies.find(x => x.id === activeStrategyId);
+    const outputColumns = (activeStrategy && activeStrategy.outputColumns) ? activeStrategy.outputColumns : ["ID", "Title"];
+    
     const config = { 
         accessKey: accessKey,
         model: document.getElementById('cfgModel')?.value || '', 
@@ -92,9 +97,48 @@ async function executeBatchLogic(dataToProcess) {
         template: document.getElementById('cfgTemplate')?.value.trim() || '', 
         samples: [] 
     };
+    
+    // 🔮 构建 System Prompt 隐形 JSON 约束注入
+    if (outputColumns.length > 0) {
+        const schemaObj = {};
+        outputColumns.forEach(col => { schemaObj[col] = "..."; });
+        const sampleJSON = JSON.stringify([schemaObj], null, 2);
+        
+        const jsonConstraint = [
+            "",
+            "=== SYSTEM OUTPUT CONSTRAINT (AUTO-GENERATED) ===",
+            "你必须严格输出一个 JSON 数组，其中包含单个 JSON 对象。",
+            "该对象的 Key（键名）必须严格且仅能包含以下定义的属性列表：",
+            JSON.stringify(outputColumns),
+            "",
+            "禁止输出任何 markdown 代码块标记（如 ```json）、任何多余的解释、前言或总结，直接以大括号或中括号开始。",
+            "输出示例：",
+            sampleJSON,
+            "=== END OUTPUT CONSTRAINT ==="
+        ].join("\n");
+        
+        config.system = (config.system ? config.system + "\n" : "") + jsonConstraint;
+    }
+    
     let actS = []; 
     document.querySelectorAll('.sample-item').forEach(el => { 
-        if (el.querySelector('.sample-active-toggle').checked) actS.push({ user: el.querySelector('.sample-user').value.trim(), assistant: el.querySelector('.sample-assistant').value.trim() }); 
+        if (el.querySelector('.sample-active-toggle').checked) {
+            // 🔮 优先从动态表单字段组装 JSON，兼容旧版 textarea
+            const fieldsContainer = el.querySelector('.sample-assistant-fields-container');
+            let assistantVal = '';
+            if (fieldsContainer) {
+                const fieldInputs = fieldsContainer.querySelectorAll('.sample-assistant-field');
+                const resultObj = {};
+                fieldInputs.forEach(input => {
+                    const colName = input.dataset.columnName;
+                    if (colName) resultObj[colName] = input.value || '';
+                });
+                assistantVal = JSON.stringify([resultObj], null, 2);
+            } else {
+                assistantVal = el.querySelector('.sample-assistant')?.value.trim() || '';
+            }
+            actS.push({ user: el.querySelector('.sample-user').value.trim(), assistant: assistantVal });
+        }
     });
     config.samples = (document.getElementById('enableRandomSample')?.checked && actS.length > 0) ? actS.sort(() => 0.5 - Math.random()).slice(0, parseInt(document.getElementById('randomSampleCount')?.value, 10) || 1) : actS;
 

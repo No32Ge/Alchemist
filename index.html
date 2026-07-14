@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -144,6 +143,20 @@
                 <button id="btnNewStrategy" class="btn-secondary !p-1.5 rounded text-indigo-600 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-plus text-xs"></i></button>
                 <button id="btnRenameStrategy" class="btn-secondary !p-1.5 rounded text-slate-500 hover:text-indigo-600 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button id="btnDeleteStrategy" class="btn-secondary !p-1.5 rounded text-slate-500 hover:text-red-500 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+
+            <!-- 🔮 输出列管理区（免代码定义 Excel 输出列） -->
+            <div class="px-4 py-3 bg-white border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-table-columns text-emerald-500 text-xs"></i>
+                    <span class="text-[0.7rem] font-bold text-slate-600">定义要生成的 Excel 列</span>
+                </div>
+                <p class="text-[0.6rem] text-slate-400 mb-2.5">这些是 AI 最终输出并写入 Excel 的列</p>
+                <div id="outputColsList" class="flex flex-wrap gap-1.5 mb-2.5 min-h-[28px]"></div>
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="newOutputColInput" class="workspace-input flex-1 !py-1.5 text-xs" placeholder="输入列名，如：地道标题、SKU提取..." onkeydown="if(event.key==='Enter')document.getElementById('btnAddOutputCol').click()">
+                    <button id="btnAddOutputCol" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 shrink-0 border border-emerald-200"><i class="fa-solid fa-plus text-[0.6rem]"></i> 添加</button>
+                </div>
             </div>
 
             <!-- 右侧策略属性标签导航 -->
