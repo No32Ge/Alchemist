@@ -1,0 +1,338 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Alchemist - Pristine Flow</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="h-screen w-screen overflow-hidden relative">
+
+    <!-- Focus Mode 居中控制栏 -->
+    <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 pointer-events-none">
+        <!-- Focus Mode 切换器 -->
+        <div id="focusSwitcher" class="bg-white/90 backdrop-blur-md border border-slate-200 p-0.5 rounded-full shadow-sm flex items-center pointer-events-auto">
+            <button onclick="switchFocus('left')" id="btnFocus-left" class="px-3 py-1 text-[0.65rem] font-bold rounded-full transition-all text-slate-500 hover:text-indigo-600">配置</button>
+            <button onclick="switchFocus('center')" id="btnFocus-center" class="px-3 py-1 text-[0.65rem] font-bold rounded-full transition-all text-slate-500 hover:text-indigo-600">工作台</button>
+            <button onclick="switchFocus('right')" id="btnFocus-right" class="px-3 py-1 text-[0.65rem] font-bold rounded-full transition-all text-slate-500 hover:text-indigo-600">策略</button>
+        </div>
+        <button onclick="toggleFocusMode()" class="pointer-events-auto bg-white/90 backdrop-blur-md border border-slate-200 text-slate-700 px-4 py-1.5 rounded-full shadow-sm flex items-center gap-2 hover:bg-slate-50 transition-all hover:shadow-md">
+            <i id="focusIcon" class="fa-solid fa-expand text-indigo-500"></i>
+            <span class="text-[0.7rem] font-bold tracking-wide" id="focusText">FOCUS MODE</span>
+        </button>
+    </div>
+
+    <!-- 核心排布容器 -->
+    <div id="layoutWrapper">
+
+        <!-- [面板 1] 数据与引擎配置 -->
+        <aside id="panelLeft" class="w-[340px] border-r border-slate-200 flex flex-col z-10 panel-section" onclick="handleCardClick('left')">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between shrink-0 focus-hide bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <div><h1 class="font-bold text-slate-800 text-sm leading-tight">Alchemist</h1><p class="text-[0.65rem] text-slate-500 font-mono">Pristine Flow</p></div>
+                </div>
+                <span id="saveIndicator" class="text-[0.65rem] font-medium text-slate-400 transition-opacity flex items-center gap-1"><i class="fa-solid fa-cloud-arrow-up"></i> 已同步</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 space-y-6">
+                <!-- API Gateway (Relay Mode) -->
+                <div>
+                    <div class="text-[0.75rem] font-bold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-network-wired text-indigo-400 mr-1"></i> API Gateway</div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[0.7rem] text-slate-500 block mb-1">
+                                <i class="fa-solid fa-key text-indigo-400 mr-1"></i> Alchemist 访问密钥
+                            </label>
+                            <input type="password" id="cfgAccessKey" class="workspace-input font-mono" placeholder="管理员生成的 alk-... 密钥">
+                            <p class="text-[0.6rem] text-slate-400 mt-1">由管理员在后台生成并提供，替代原始 API Key</p>
+                        </div>
+                        <div>
+                            <label class="text-[0.7rem] text-slate-500 block mb-1">
+                                <i class="fa-solid fa-robot text-indigo-400 mr-1"></i> 选择模型
+                            </label>
+                            <select id="cfgModel" class="workspace-input cursor-pointer">
+                                <option value="">请先填写 Access Key 以加载模型...</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 mt-3">
+                            <div><label class="text-[0.7rem] text-slate-500 block mb-1">Workers</label><input type="number" id="cfgMaxWorkers" class="workspace-input" value="100"></div>
+                            <div><label class="text-[0.7rem] text-slate-500 block mb-1">Max Retries</label><input type="number" id="cfgMaxRetries" class="workspace-input" value="3"></div>
+                            <div><label class="text-[0.7rem] text-slate-500 block mb-1">Delay (s)</label><input type="number" id="cfgDelay" class="workspace-input" value="1"></div>
+                        </div>
+                        <div id="keyStatusArea" class="hidden bg-slate-50 rounded-lg p-3 text-xs border border-slate-200 mt-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-slate-500">剩余积分</span>
+                                <span id="keyCreditsDisplay" class="font-bold font-mono text-indigo-600">—</span>
+                            </div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-slate-500">已调用</span>
+                                <span id="keyCallsDisplay" class="font-mono text-slate-600">—</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">预估单次消耗</span>
+                                <span id="keyEstimatedCost" class="font-bold font-mono text-orange-500">—</span>
+                            </div>
+                            <div id="timeWeightBadge" class="hidden mt-1.5 text-center">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.6rem] font-bold bg-purple-50 text-purple-600 border border-purple-200">
+                                    <i class="fa-solid fa-clock"></i>
+                                    <span id="timeWeightLabel">时段加权 ×1.0</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Source -->
+                <div>
+                    <div class="text-[0.75rem] font-bold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-database text-emerald-400 mr-1"></i> Data Source</div>
+                    <div class="file-upload-wrapper mb-3 border-slate-200">
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv">
+                        <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-400 mb-2"></i>
+                        <p class="text-xs text-slate-600 font-medium">点击或拖拽上传 Excel / CSV</p>
+                        <p class="text-[0.65rem] text-slate-400 mt-1" id="fileNameDisplay">未选择文件</p>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <span class="text-xs text-slate-500">表头所在行:</span><input type="number" id="headerRowNum" min="1" value="1" class="workspace-input w-16 !py-1 text-center">
+                        <button id="loadFieldsBtn" class="btn-secondary px-2 py-1 text-xs rounded-md ml-auto text-indigo-600">解析提取</button>
+                    </div>
+                    
+                    <div class="bg-indigo-50/50 rounded-lg p-4 text-xs font-mono border border-indigo-100/50 relative">
+                        <div class="text-slate-500 text-[0.65rem] mb-2"><i class="fa-solid fa-magnet mr-1"></i>可拖拽变量:</div>
+                        <div id="fieldPreview" class="flex flex-wrap gap-1.5 relative z-10 text-indigo-700">等待解析...</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- [面板 2] 中央对话执行区 -->
+        <main id="panelCenter" class="flex-1 flex flex-col relative bg-[#f8fafc] z-20 panel-section border-x border-slate-200" onclick="handleCardClick('center')">
+            <div id="chatArea" class="flex-1 overflow-y-auto p-6 md:p-10 pb-32"></div>
+            
+            <div class="absolute bottom-8 right-8 z-50 flex flex-col items-end gap-3 pointer-events-none">
+                <div class="bg-white/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm text-[0.65rem] font-bold text-slate-600 flex items-center gap-2 border border-slate-200 pointer-events-auto">
+                    <span id="dataStatusIndicator"><i class="fa-solid fa-circle text-red-500 text-[0.5rem] align-middle mr-1"></i> 离线</span>
+                    <span class="w-[1px] h-3 bg-slate-200"></span>
+                    <span id="systemStatusIndicator"><i class="fa-solid fa-circle text-emerald-500 text-[0.5rem] align-middle mr-1"></i> 空闲</span>
+                </div>
+                <button id="fabBtn" class="group relative w-14 h-14 bg-indigo-600 text-white rounded-full shadow-[0_8px_20px_rgba(79,70,229,0.3)] flex items-center justify-center text-xl hover:bg-indigo-700 hover:scale-105 transition-all duration-300 pointer-events-auto">
+                    <i id="fabIcon" class="fa-solid fa-play ml-1"></i>
+                    <span id="fabTooltip" class="absolute right-full mr-4 bg-slate-800 text-white text-xs px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">开始执行当前策略</span>
+                </button>
+            </div>
+        </main>
+
+        <!-- [面板 3] 右侧策略配置区 -->
+        <aside id="panelRight" class="w-[400px] flex flex-col z-10 panel-section border-l border-slate-200" onclick="handleCardClick('right')">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white focus-hide">
+                <h2 class="font-bold text-slate-800 text-sm flex items-center"><i class="fa-solid fa-brain mr-2 text-indigo-500"></i>Prompt Strategy</h2>
+                <button onclick="openConfigModal()" class="text-slate-500 hover:text-indigo-600 text-xs px-2.5 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200/60 rounded-md transition-all flex items-center gap-1.5 font-semibold shadow-sm" title="系统设置">
+                    <i class="fa-solid fa-gear text-slate-400"></i> <span>全局配置</span>
+                </button>
+            </div>
+
+            <!-- 多策略选择器 -->
+            <div class="px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center gap-1.5 shrink-0 shadow-sm relative z-20">
+                <i class="fa-solid fa-layer-group text-indigo-400 text-xs ml-1 mr-1"></i>
+                <select id="strategySelector" class="workspace-input !py-1.5 flex-1 text-xs font-bold text-indigo-700 bg-white border-slate-200 cursor-pointer shadow-sm"></select>
+                <button id="btnNewStrategy" class="btn-secondary !p-1.5 rounded text-indigo-600 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-plus text-xs"></i></button>
+                <button id="btnRenameStrategy" class="btn-secondary !p-1.5 rounded text-slate-500 hover:text-indigo-600 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button id="btnDeleteStrategy" class="btn-secondary !p-1.5 rounded text-slate-500 hover:text-red-500 w-8 flex justify-center bg-white shadow-sm"><i class="fa-solid fa-trash text-xs"></i></button>
+            </div>
+
+            <!-- 🔮 输出列管理区（免代码定义 Excel 输出列） -->
+            <div class="px-4 py-3 bg-white border-b border-slate-100 shrink-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-table-columns text-emerald-500 text-xs"></i>
+                    <span class="text-[0.7rem] font-bold text-slate-600">定义要生成的 Excel 列</span>
+                </div>
+                <p class="text-[0.6rem] text-slate-400 mb-2.5">这些是 AI 最终输出并写入 Excel 的列</p>
+                <div id="outputColsList" class="flex flex-wrap gap-1.5 mb-2.5 min-h-[28px]"></div>
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="newOutputColInput" class="workspace-input flex-1 !py-1.5 text-xs" placeholder="输入列名，如：地道标题、SKU提取..." onkeydown="if(event.key==='Enter')document.getElementById('btnAddOutputCol').click()">
+                    <button id="btnAddOutputCol" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 shrink-0 border border-emerald-200"><i class="fa-solid fa-plus text-[0.6rem]"></i> 添加</button>
+                </div>
+            </div>
+
+            <!-- 右侧策略属性标签导航 -->
+            <div class="px-4 py-2 border-b border-slate-100 flex gap-1 bg-slate-50 shrink-0 select-none">
+                <button onclick="switchRightTab('system')" id="tabBtn-system" class="right-tab-btn flex-1 py-1.5 text-xs font-bold rounded-md transition-all text-indigo-600 bg-white shadow-sm border border-slate-200">System</button>
+                <button onclick="switchRightTab('template')" id="tabBtn-template" class="right-tab-btn flex-1 py-1.5 text-xs font-semibold rounded-md transition-all text-slate-500 hover:text-indigo-600">Template</button>
+                <button onclick="switchRightTab('fewshot')" id="tabBtn-fewshot" class="right-tab-btn flex-1 py-1.5 text-xs font-semibold rounded-md transition-all text-slate-500 hover:text-indigo-600">Few-Shot</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 bg-white relative">
+                <!-- System Tab -->
+                <div id="sec-system" class="space-y-4">
+                    <div class="relative group">
+                        <label class="text-[0.75rem] font-semibold text-slate-700 block mb-2 flex justify-between items-center">
+                            <span><i class="fa-solid fa-terminal mr-1 text-slate-400"></i> System Instructions</span>
+                            <button onclick="openFullscreenEditor('cfgSystem', 'System Instructions')" class="text-indigo-500 hover:text-indigo-700 text-[0.65rem] font-medium flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded transition-all"><i class="fa-solid fa-expand text-[0.55rem]"></i> 沉浸编辑</button>
+                        </label>
+                        <div class="bg-transparent relative pb-1">
+                            <textarea id="cfgSystem" class="ghost-input font-mono text-[0.75rem] leading-relaxed w-full transition-all" rows="12"></textarea>
+                            <div class="absolute bottom-0 w-full h-[1px] border-b border-dashed border-slate-200 group-hover:border-indigo-400 transition-colors"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Template Tab -->
+                <div id="sec-template" class="hidden space-y-4">
+                    <div>
+                        <label class="text-[0.75rem] font-semibold text-slate-700 block mb-2 flex justify-between items-center">
+                            <span><i class="fa-solid fa-code mr-1 text-slate-400"></i> Prompt Template</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openFullscreenEditor('cfgTemplate', 'Prompt Template')" class="text-indigo-500 hover:text-indigo-700 text-[0.65rem] font-medium flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded transition-all"><i class="fa-solid fa-expand text-[0.55rem]"></i> 全屏编辑</button>
+                                <span class="text-[0.65rem] text-indigo-500 font-normal">输入 {{ 唤醒变量补全</span>
+                            </div>
+                        </label>
+                        
+                        <!-- 镜像双层文本渲染系统，支持实时 Token 语法高亮 -->
+                        <div class="relative w-full rounded-xl border border-dashed border-slate-300 focus-within:border-solid focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all bg-white overflow-hidden" style="height: 240px;">
+                            <!-- 镜像渲染层 (Mirror Panel) - 通过共同基础类实现极客级折行与中文字符对齐 -->
+                            <div id="cfgTemplateMirror" class="template-editor-shared absolute inset-0 overflow-y-auto pointer-events-none select-none bg-white rounded-xl"></div>
+                            <!-- 真实输入层 (Active Interactive Area) - 双层完全镜像覆盖，实现零偏差光标表现 -->
+                            <textarea id="cfgTemplate" class="template-editor-shared absolute inset-0 w-full h-full bg-transparent text-transparent caret-slate-800 resize-none outline-none border-none select-text z-10 rounded-xl" placeholder="直接在此输入模板，或键入 {{ 触发自动变量着色补全..."></textarea>
+                            <!-- 自动补全浮动菜单 -->
+                            <div id="autocompletePopup" class="absolute bottom-2 left-2 right-2 max-h-36 bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-lg rounded-lg p-1 hidden flex-col overflow-y-auto z-20 pointer-events-auto"></div>
+                        </div>
+                        
+                        <div class="mt-3 flex justify-between items-center">
+                            <span class="text-[0.65rem] text-slate-400">最大字符截断数</span>
+                            <input type="number" id="cfgMaxChars" class="workspace-input w-24 !py-0.5 text-center text-xs" value="20000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Few-Shot Tab -->
+                <div id="sec-fewshot" class="hidden space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-[0.75rem] font-semibold text-slate-700"><i class="fa-solid fa-list-check mr-1 text-slate-400"></i> Few-Shot 样本</label>
+                            <button id="addSampleBtn" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1 text-[0.65rem] rounded font-medium transition-colors"><i class="fa-solid fa-plus"></i> 添加样本</button>
+                        </div>
+                        <div class="mb-4 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[0.7rem] flex items-center justify-between">
+                            <label class="flex items-center gap-2 cursor-pointer text-slate-600 font-medium"><input type="checkbox" id="enableRandomSample" class="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"> <span>开启随机挑选(防缓存)</span></label>
+                            <!-- 修复 w-10 与 padding 冲突导致数字无法完全显示的问题，通过 w-14 与 !px-1 释出内容宽度 -->
+                            <div class="flex items-center gap-1"><span class="text-slate-400">取</span><input type="number" id="randomSampleCount" class="workspace-input w-14 !px-1 !py-0.5 text-center font-bold text-indigo-600" value="1" min="1"><span class="text-slate-400">个</span></div>
+                        </div>
+                        <div id="samplesContainer" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- ================= 沉浸式全屏文本编辑器 Modal ================= -->
+    <div id="fullscreenEditorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] hidden flex items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="bg-white w-11/12 max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col transform scale-95 transition-transform duration-200" id="fsEditorContent">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-expand text-indigo-500"></i> <span id="fsEditorTitle">编辑文本</span></h3>
+                <button onclick="closeFullscreenEditor(false)" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="flex-1 p-5 flex flex-col bg-slate-50">
+                <textarea id="fsEditorTextarea" class="w-full flex-1 p-4 bg-white border border-slate-200 rounded-xl font-mono text-xs leading-relaxed focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none shadow-sm" placeholder="在此输入内容..."></textarea>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 flex justify-end gap-3 bg-white rounded-b-2xl">
+                <button onclick="closeFullscreenEditor(false)" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-semibold transition-colors">取消</button>
+                <button onclick="closeFullscreenEditor(true)" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shadow-indigo-100 transition-colors">应用修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 齿轮配置 Modal ================= -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="bg-white/95 backdrop-blur-xl w-11/12 max-w-md rounded-3xl shadow-[0_32px_64px_-12px_rgba(15,23,42,0.15)] flex flex-col transform scale-95 transition-all duration-200 border border-slate-100 overflow-hidden" id="configModalContent">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-slate-100/80 flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50/20">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100/30">
+                        <i class="fa-solid fa-sliders text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">全局配置空间</h3>
+                        <p class="text-[0.65rem] text-slate-400 mt-0.5">管理数据策略空间与配置文件</p>
+                    </div>
+                </div>
+                <button onclick="closeConfigModal()" class="w-7 h-7 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+                <!-- Export Card -->
+                <div class="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:border-indigo-100 transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <i class="fa-solid fa-file-export text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-700">导出数据空间备份 (Export)</span>
+                    </div>
+                    <p class="text-[0.68rem] text-slate-400 mb-3.5 leading-relaxed">备份您当前所有的提示词策略、Few-Shot 示例及 API 接口配置，生成轻量 JSON 文件。</p>
+                    <div class="flex gap-2">
+                        <button onclick="exportAppConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex-1 py-2 text-xs font-semibold shadow-sm shadow-indigo-100 transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-download"></i> 下载 JSON 备份</button>
+                        <button onclick="copyAppConfig()" class="border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl px-3 py-2 text-xs font-medium transition-colors flex items-center justify-center" title="复制 JSON"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                </div>
+                <!-- Import Card -->
+                <div class="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:border-emerald-100 transition-all">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 rounded-md bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <i class="fa-solid fa-file-import text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-700">导入配置/策略包 (Import)</span>
+                    </div>
+                    <textarea id="importArea" class="workspace-input text-[0.7rem] h-20 mb-3 focus:border-emerald-500 focus:ring-emerald-100/50 font-mono" placeholder="粘贴完整的备份 JSON 配置文件文本..."></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="importAppConfigFromText()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex-1 py-2 text-xs font-semibold shadow-sm shadow-emerald-100 transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-check"></i> 应用配置文本</button>
+                        <div class="relative">
+                            <input type="file" id="configFileImport" accept=".json" class="absolute inset-0 opacity-0 cursor-pointer">
+                            <button class="border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl px-3 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5"><i class="fa-solid fa-folder-open"></i> <span>打开文件</span></button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Danger Zone -->
+                <div class="p-4 rounded-2xl border border-red-50 bg-red-50/10">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-6 h-6 rounded-md bg-red-50 flex items-center justify-center text-red-600">
+                            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-red-700">危险区域 (Danger Zone)</span>
+                    </div>
+                    <p class="text-[0.65rem] text-red-500/80 mb-3 leading-relaxed">重置将抹除本地所有的策略及 API 配置信息，操作不可逆，请做好备份。</p>
+                    <button onclick="resetAppConfig()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5"><i class="fa-solid fa-trash-arrow-up"></i> 恢复出厂设置并清空本地缓存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 日志 Modal ================= -->
+    <div id="logModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] hidden flex items-center justify-center opacity-0 transition-opacity duration-200">
+        <div class="bg-white w-11/12 max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh] transform scale-95 transition-transform duration-200" id="logModalContent">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-terminal text-slate-500 mr-2"></i> Execution Logs</h3>
+                <button onclick="closeLogsModal()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 bg-[#1e293b] text-emerald-400 font-mono text-[0.8rem] leading-relaxed" id="logModalBody"></div>
+            <div class="px-4 py-3 border-t border-slate-100 flex justify-end bg-slate-50 rounded-b-2xl">
+                <button onclick="closeLogsModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-sm transition-colors">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS 文件按依赖顺序加载 -->
+    <script src="./js/main.js"></script>
+    <script src="./js/ui.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/focus.js"></script>
+    <script src="./js/drag.js"></script>
+    <script src="./js/data.js"></script>
+    <script src="./js/ai.js"></script>
+</body>
+</html>

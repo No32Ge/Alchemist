@@ -1,0 +1,21 @@
+/* Font mapping */
+body {
+  font-family: 'Inter', sans-serif;
+  background-image: radial-gradient(circle at top, #1e1b4b 0%, #020617 100%);
+}
+
+#interactive-title {
+  background-size: 200% 200%;
+  animation: shine 6s linear infinite;
+}
+
+@keyframes shine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+button:focus {
+  outline: 2px solid rgb(99, 102, 241);
+  outline-offset: 2px;
+}

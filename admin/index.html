@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alchemist Admin — 控制台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .glass-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.6); }
+    .nav-item.active { background: white; color: #4f46e5; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04); }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast-in { animation: slideDown 0.3s ease-out; }
+    .modal-enter { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .model-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+  </style>
+</head>
+<body class="h-screen flex flex-col">
+
+  <!-- ==================== 登录页面 ==================== -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-900">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+    </div>
+    <div class="glass-card rounded-2xl p-8 w-full max-w-md shadow-2xl relative z-10">
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg shadow-indigo-200/50">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800">Alchemist</h1>
+        <p class="text-sm text-slate-500 mt-1">管理员控制台</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">管理员密码</label>
+          <div class="relative">
+            <input type="password" id="loginPassword" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all" placeholder="输入密码..." onkeydown="if(event.key==='Enter')doLogin()">
+            <i class="fa-solid fa-lock absolute right-3 top-1/2 -translate-y-1/2 text-slate-300"></i>
+          </div>
+        </div>
+        <button onclick="doLogin()" id="loginBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-indigo-200 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-right-to-bracket"></i> 登录控制台
+        </button>
+        <p id="loginError" class="text-red-500 text-xs text-center hidden"></p>
+      </div>
+      <p class="text-center text-[0.65rem] text-slate-400 mt-6">默认密码: alchemist-admin</p>
+    </div>
+  </div>
+
+  <!-- ==================== 主控制台 ==================== -->
+  <div id="mainApp" class="h-full flex hidden">
+
+    <!-- 侧边导航 -->
+    <nav class="w-56 bg-white border-r border-slate-200 flex flex-col shrink-0 shadow-sm z-20">
+      <div class="p-5 border-b border-slate-100">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-lg shadow-md shadow-indigo-200">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-slate-800 text-sm">Alchemist</h1>
+            <p class="text-[0.6rem] text-slate-400 font-mono uppercase tracking-wider">Admin v2.0</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 p-3 space-y-1 overflow-y-auto">
+        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="nav-item active w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-gauge-high w-4 text-center"></i> 仪表盘
+        </button>
+        <button onclick="switchTab('keys')" data-tab="keys" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-key w-4 text-center"></i> 密钥管理
+        </button>
+        <button onclick="switchTab('realKeys')" data-tab="realKeys" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-shield-halved w-4 text-center"></i> 真实 API 密钥
+        </button>
+        <button onclick="switchTab('timeWeight')" data-tab="timeWeight" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-clock w-4 text-center"></i> 🕒 时间加权
+        </button>
+        <button onclick="switchTab('strategies')" data-tab="strategies" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-brain w-4 text-center"></i> 策略审计
+        </button>
+        <button onclick="switchTab('devices')" data-tab="devices" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-mobile-screen w-4 text-center"></i> 在线设备
+        </button>
+        <button onclick="switchTab('logs')" data-tab="logs" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-rectangle-list w-4 text-center"></i> 消费日志
+        </button>
+        <button onclick="switchTab('settings')" data-tab="settings" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-gear w-4 text-center"></i> 系统设置
+        </button>
+      </div>
+      <div class="p-3 border-t border-slate-100">
+        <button onclick="doLogout()" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all flex items-center gap-2.5">
+          <i class="fa-solid fa-right-from-bracket"></i> 退出登录
+        </button>
+      </div>
+    </nav>
+
+    <!-- 内容区 -->
+    <main class="flex-1 overflow-y-auto bg-slate-50">
+      <div class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <h2 id="tabTitle" class="font-bold text-slate-800 text-lg">📊 仪表盘</h2>
+        <div class="flex items-center gap-3 text-xs text-slate-400">
+          <span id="serverStatus" class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot"></span> 服务正常
+          </span>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <!-- ===== 仪表盘 ===== -->
+        <div id="tab-dashboard" class="tab-content">
+          <!-- KPI 卡片 -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">活跃密钥</span><div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><i class="fa-solid fa-key"></i></div></div>
+              <p class="text-3xl font-bold text-slate-800" id="statActiveKeys">—</p>
+              <p class="text-xs text-slate-400 mt-1"><span id="statTotalKeys">—</span> 总数</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">在线设备</span><div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600"><i class="fa-solid fa-signal"></i></div></div>
+              <p class="text-3xl font-bold text-emerald-600" id="statOnlineDevices">—</p>
+              <p class="text-xs text-slate-400 mt-1"><span id="statTotalDevices">—</span> 历史总数</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">今日消耗</span><div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600"><i class="fa-solid fa-bolt"></i></div></div>
+              <p class="text-3xl font-bold text-orange-600" id="statTodayCredits">—</p>
+              <p class="text-xs text-slate-400 mt-1">积分 / <span id="statTodayTokens" class="font-mono">—</span> Token</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between mb-3"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">分发总积分</span><div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600"><i class="fa-solid fa-coins"></i></div></div>
+              <p class="text-3xl font-bold text-purple-600" id="statTotalCredits">—</p>
+              <p class="text-xs text-slate-400 mt-1">未消耗 + 已消耗</p>
+            </div>
+          </div>
+
+          <!-- 📊 图表行 1：趋势图 + 状态环形图 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <!-- 趋势图 (占 2/3) -->
+            <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-chart-line text-indigo-500 mr-1.5"></i>积分 & Token 消耗趋势</h3>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="switchTrendMode('24h')" id="trendBtn-24h" class="text-[0.65rem] px-2.5 py-1 rounded-full font-semibold transition-all bg-indigo-100 text-indigo-700">24小时</button>
+                  <button onclick="switchTrendMode('7d')" id="trendBtn-7d" class="text-[0.65rem] px-2.5 py-1 rounded-full font-semibold transition-all text-slate-500 hover:text-indigo-600">近7日</button>
+                </div>
+              </div>
+              <div class="p-4"><canvas id="trendChart" height="180"></canvas></div>
+            </div>
+            <!-- 状态环形图 (占 1/3) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-chart-pie text-indigo-500 mr-1.5"></i>请求状态占比</h3>
+              </div>
+              <div class="p-4 flex items-center justify-center"><canvas id="statusChart" height="180"></canvas></div>
+            </div>
+          </div>
+
+          <!-- 📊 图表行 2：模型饼图 + 积分消耗大户 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <!-- 模型饼图 -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-robot text-indigo-500 mr-1.5"></i>模型调用比例</h3>
+              </div>
+              <div class="p-4"><canvas id="modelChart" height="200"></canvas></div>
+            </div>
+            <!-- 积分消耗大户 Top 10 -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 class="font-bold text-slate-700 text-sm"><i class="fa-solid fa-crown text-amber-500 mr-1.5"></i>积分消耗大户 Top 10</h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead class="bg-slate-50">
+                    <tr>
+                      <th class="text-left px-4 py-2 font-semibold text-slate-500">#</th>
+                      <th class="text-left px-4 py-2 font-semibold text-slate-500">密钥</th>
+                      <th class="text-right px-4 py-2 font-semibold text-slate-500">积分</th>
+                      <th class="text-right px-4 py-2 font-semibold text-slate-500">调用</th>
+                      <th class="text-right px-4 py-2 font-semibold text-slate-500">成功率</th>
+                    </tr>
+                  </thead>
+                  <tbody id="topConsumersBody" class="divide-y divide-slate-50"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最近调用 -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="font-bold text-slate-700 text-sm">最近调用记录</h3>
+              <span class="text-xs text-slate-400">实时更新</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-slate-50">
+                  <tr><th class="text-left px-4 py-2.5 font-semibold text-slate-500">时间</th><th class="text-left px-4 py-2.5 font-semibold text-slate-500">密钥</th><th class="text-left px-4 py-2.5 font-semibold text-slate-500">展示模型</th><th class="text-left px-4 py-2.5 font-semibold text-slate-500">积分</th><th class="text-left px-4 py-2.5 font-semibold text-slate-500">加权</th><th class="text-left px-4 py-2.5 font-semibold text-slate-500">状态</th></tr>
+                </thead>
+                <tbody id="dashboardLogsBody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 密钥管理 ===== -->
+        <div id="tab-keys" class="tab-content hidden">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-slate-500">管理所有分发给用户的 Access Key</p>
+            <button onclick="showCreateKeyModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-plus"></i> 生成新密钥
+            </button>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">名称</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Access Key</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">真实 Key</th>
+                    <th class="text-right px-4 py-3 font-semibold text-slate-500 text-xs uppercase">积分余额</th>
+                    <th class="text-right px-4 py-3 font-semibold text-slate-500 text-xs uppercase">调用次数</th>
+                    <th class="text-center px-4 py-3 font-semibold text-slate-500 text-xs uppercase">状态</th>
+                    <th class="text-center px-4 py-3 font-semibold text-slate-500 text-xs uppercase">设备</th>
+                    <th class="text-right px-4 py-3 font-semibold text-slate-500 text-xs uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="keysTableBody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 真实 API 密钥（大改版） ===== -->
+        <div id="tab-realKeys" class="tab-content hidden">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-slate-500">管理 DeepSeek 真实 API 密钥 + 展示模型映射 + 时间加权规则</p>
+            <button onclick="showCreateRealKeyModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-plus"></i> 添加真实密钥
+            </button>
+          </div>
+          <div id="realKeysList" class="space-y-6"></div>
+        </div>
+
+        <!-- ===== 🕒 时间加权规则 ===== -->
+        <div id="tab-timeWeight" class="tab-content hidden">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-slate-500">创建时间段加权规则，应用到真实 API 密钥上实现分时定价</p>
+            <button onclick="showCreateTimeWeightModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-plus"></i> 新建规则
+            </button>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">规则名称</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">开始时间</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">结束时间</th>
+                    <th class="text-right px-4 py-3 font-semibold text-slate-500 text-xs uppercase">加权系数</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">描述</th>
+                    <th class="text-right px-4 py-3 font-semibold text-slate-500 text-xs uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="timeWeightTableBody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 策略审计 ===== -->
+        <div id="tab-strategies" class="tab-content hidden">
+          <p class="text-sm text-slate-500 mb-4">审计所有用户上传的 System Prompt、Template 与 Few-Shot 样本。</p>
+          <div id="strategiesList" class="space-y-4"></div>
+        </div>
+
+        <!-- ===== 在线设备 ===== -->
+        <div id="tab-devices" class="tab-content hidden">
+          <p class="text-sm text-slate-500 mb-4">查看所有绑定设备及其使用的 Access Key <span class="text-[0.65rem] text-slate-400">(30s 心跳，5min 离线判定)</span></p>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Device ID</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Access Key</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">密钥名称</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">绑定时间</th>
+                    <th class="text-left px-4 py-3 font-semibold text-slate-500 text-xs uppercase">最后在线</th>
+                  </tr>
+                </thead>
+                <tbody id="devicesTableBody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 消费日志 ===== -->
+        <div id="tab-logs" class="tab-content hidden">
+          <p class="text-sm text-slate-500 mb-4">详细的 API 调用消费记录（含时间加权信息）</p>
+
+          <!-- 🔍 多维筛选栏 -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4">
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-filter text-slate-400 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-500">筛选:</span>
+              </div>
+              <select id="logFilterKey" onchange="applyLogFilters()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 min-w-[160px]">
+                <option value="">全部 Access Key</option>
+              </select>
+              <select id="logFilterModel" onchange="applyLogFilters()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 min-w-[140px]">
+                <option value="">全部模型</option>
+              </select>
+              <select id="logFilterStatus" onchange="applyLogFilters()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 min-w-[120px]">
+                <option value="">全部状态</option>
+                <option value="success">✅ 成功</option>
+                <option value="failed">❌ 失败</option>
+                <option value="error">⚠️ 错误</option>
+              </select>
+              <button onclick="resetLogFilters()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-all flex items-center gap-1">
+                <i class="fa-solid fa-rotate-left"></i> 重置
+              </button>
+              <span class="text-[0.65rem] text-slate-400 ml-auto" id="logsFilteredCount"></span>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th class="text-left px-4 py-2.5 font-semibold text-slate-500">时间</th>
+                    <th class="text-left px-4 py-2.5 font-semibold text-slate-500">密钥</th>
+                    <th class="text-left px-4 py-2.5 font-semibold text-slate-500">设备</th>
+                    <th class="text-left px-4 py-2.5 font-semibold text-slate-500">展示模型</th>
+                    <th class="text-right px-4 py-2.5 font-semibold text-slate-500">积分</th>
+                    <th class="text-right px-4 py-2.5 font-semibold text-slate-500">加权</th>
+                    <th class="text-right px-4 py-2.5 font-semibold text-slate-500">Prompt</th>
+                    <th class="text-right px-4 py-2.5 font-semibold text-slate-500">Completion</th>
+                    <th class="text-center px-4 py-2.5 font-semibold text-slate-500">状态</th>
+                  </tr>
+                </thead>
+                <tbody id="logsTableBody" class="divide-y divide-slate-50"></tbody>
+              </table>
+            </div>
+            <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-xs text-slate-400" id="logsPagination"></span>
+              <div class="flex gap-2">
+                <button onclick="loadLogs(Math.max(0, currentLogOffset - 100))" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-all">上一页</button>
+                <button onclick="loadLogs(currentLogOffset + 100)" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-all">下一页</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 系统设置 ===== -->
+        <div id="tab-settings" class="tab-content hidden">
+          <div class="max-w-lg space-y-6">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h3 class="font-bold text-slate-700 text-sm mb-4">修改管理员密码</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs font-semibold text-slate-500 block mb-1">新密码</label>
+                  <input type="password" id="newAdminPassword" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="输入新密码">
+                </div>
+                <button onclick="changePassword()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">保存修改</button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h3 class="font-bold text-slate-700 text-sm mb-3">💾 数据备份与恢复</h3>
+              <p class="text-xs text-slate-500 mb-4">导出全部数据为 JSON 文件。恢复时请确保使用相同 schema 版本的备份文件。</p>
+              <div class="flex flex-wrap gap-3">
+                <button onclick="exportBackup()" id="btnExportBackup" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 shadow-sm">
+                  <i class="fa-solid fa-download"></i> 导出数据
+                </button>
+                <label class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                  <i class="fa-solid fa-upload"></i> 导入数据
+                  <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importBackup()">
+                </label>
+              </div>
+              <p id="importResultMsg" class="text-xs mt-3 hidden"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[200] space-y-2"></div>
+
+  <!-- ==================== Modals ==================== -->
+
+  <!-- 创建 Access Key Modal -->
+  <div id="createKeyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">生成新 Access Key</h3>
+        <button onclick="closeModal('createKeyModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">密钥名称</label><input type="text" id="newKeyName" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="例如：张三的密钥"></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">关联真实 API Key</label><select id="newKeyRealApiId" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"></select></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">初始积分</label><input type="number" id="newKeyCredits" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="1000" min="1"></div>
+        <div class="flex items-center gap-2"><input type="checkbox" id="newKeyActive" checked class="rounded text-indigo-500 focus:ring-indigo-500"><label class="text-sm text-slate-600">立即激活</label></div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('createKeyModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="createAccessKey()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">生成密钥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建 Real API Key Modal -->
+  <div id="createRealKeyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">添加真实 API 密钥</h3>
+        <button onclick="closeModal('createRealKeyModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">名称</label><input type="text" id="newRealKeyName" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="例如：DeepSeek 主账号"></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">API Key</label><input type="password" id="newRealApiKey" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 font-mono" placeholder="sk-xxxx..."></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">Base URL</label><input type="text" id="newRealBaseUrl" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="https://api.deepseek.com"></div>
+        <div class="flex items-center gap-2"><input type="checkbox" id="newRealAutoAssociate" class="rounded text-indigo-500 focus:ring-indigo-500"><label class="text-sm text-slate-600">自动关联（新设备自动分配到此密钥）</label></div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('createRealKeyModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="createRealApiKey()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑 Real API Key Modal (全功能) -->
+  <div id="editRealKeyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">编辑真实 API 密钥</h3>
+        <button onclick="closeModal('editRealKeyModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-6">
+        <input type="hidden" id="editRealKeyId">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-xs font-semibold text-slate-500 block mb-1">名称</label><input type="text" id="editRealKeyName" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"></div>
+          <div><label class="text-xs font-semibold text-slate-500 block mb-1">Base URL</label><input type="text" id="editRealBaseUrl" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"></div>
+        </div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">API Key（留空不修改）</label><input type="password" id="editRealApiKey" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 font-mono" placeholder="留空则不修改..."></div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-500 block mb-1">🕒 时间加权规则</label>
+            <select id="editRealTimeWeight" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500">
+              <option value="">不使用时间加权</option>
+            </select>
+          </div>
+          <div class="flex items-end pb-1">
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="editRealAutoAssociate" class="rounded text-indigo-500 focus:ring-indigo-500"><span class="text-sm text-slate-600">自动关联新设备</span></label>
+          </div>
+        </div>
+        <!-- 🔮 展示模型管理区 -->
+        <div class="border-t border-slate-100 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-slate-700 text-sm">🔮 展示模型映射（用户可见 → 真实上游模型）</h4>
+            <button onclick="showModelFormModal()" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium"><i class="fa-solid fa-plus"></i> 添加模型</button>
+          </div>
+          <div id="editRealKeyModels" class="space-y-2"></div>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('editRealKeyModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="saveRealKeyEdit()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建/编辑时间加权规则 Modal（共用） -->
+  <div id="createTimeWeightModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800" id="twModalTitle">新建时间加权规则</h3>
+        <button onclick="closeModal('createTimeWeightModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <input type="hidden" id="editTWId">
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">规则名称</label><input type="text" id="newTWName" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="例如：深夜流量打折"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold text-slate-500 block mb-1">开始时间 (HH:MM)</label><input type="time" id="newTWStart" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="01:00"></div>
+          <div><label class="text-xs font-semibold text-slate-500 block mb-1">结束时间 (HH:MM)</label><input type="time" id="newTWEnd" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="06:00"></div>
+        </div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">加权系数</label><input type="number" id="newTWMultiplier" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="0.8" step="0.1" min="0.1"><p class="text-[0.6rem] text-slate-400 mt-1">0.8 = 打八折, 1.5 = 上浮 50%</p></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">描述</label><input type="text" id="newTWDesc" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="可选"></div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('createTimeWeightModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="saveTimeWeightRule()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑策略 Modal -->
+  <div id="editStrategyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">编辑策略</h3>
+        <button onclick="closeModal('editStrategyModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <input type="hidden" id="editStrategyId">
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">System Prompt</label><textarea id="editStrategySystem" rows="4" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:border-indigo-500"></textarea></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">Template</label><textarea id="editStrategyTemplate" rows="3" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:border-indigo-500"></textarea></div>
+        <div><label class="text-xs font-semibold text-slate-500 block mb-1">Few-Shot 样本 (JSON)</label><textarea id="editStrategyFewShots" rows="8" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-500"></textarea></div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('editStrategyModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="saveStrategyEdit()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 展示模型表单 Modal（新增/编辑共用） -->
+  <div id="modelFormModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[150] hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl modal-enter">
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800" id="modelFormTitle">添加展示模型</h3>
+        <button onclick="closeModal('modelFormModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="p-6 space-y-4">
+        <input type="hidden" id="modelFormId">
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1">展示模型名称 <span class="text-red-400">*</span></label>
+          <input type="text" id="modelFormDisplayName" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="用户在下拉菜单中看到的名称，如：Alchemist-Chat">
+          <p class="text-[0.6rem] text-slate-400 mt-1">用户前端模型下拉菜单中显示的选项</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1">真实上游模型名 <span class="text-red-400">*</span></label>
+          <input type="text" id="modelFormUpstream" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 font-mono" placeholder="如：deepseek-chat、gpt-4o、claude-3-opus">
+          <p class="text-[0.6rem] text-slate-400 mt-1">实际发送给 API 提供商的模型标识符</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1">每次消耗积分 <span class="text-red-400">*</span></label>
+          <input type="number" id="modelFormBaseRate" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" value="1" step="0.1" min="0.1">
+          <p class="text-[0.6rem] text-slate-400 mt-1">该模型单次调用的基础积分消耗（可配合时间加权）</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1">描述</label>
+          <input type="text" id="modelFormDesc" class="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500" placeholder="可选说明">
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+        <button onclick="closeModal('modelFormModal')" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">取消</button>
+        <button onclick="saveModelForm()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/ADMIN/admin/.js"></script>
+</body>
+</html>
